@@ -1,8 +1,8 @@
-use std::{iter::repeat_n, ops::Deref, usize};
+use std::{iter::repeat_n, usize};
 
 const NUMS: [&str; 10] = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
 const LIANG: &str = "两";
-const FU: &str = "负";
+const FU: char = '负';
 const PRE_UNITS: [&str; 4] = ["千", "百", "十", ""];
 const ATT_UNITS: [&str; 18] = [
     "万",
@@ -81,46 +81,41 @@ pub fn sinonumify(num_str: &str) -> String {
         return NUMS[0].to_string();
     }
     let negative = num_str.starts_with("-");
-    let mut res = if negative { vec![FU] } else { vec![] };
-    res.append(&mut sinonum_impl(&num_str[(negative as usize)..]));
-    res.join("")
+    let mut res: String = sinonum_impl(&num_str.trim()[(negative as usize)..]);
+    if negative {
+        res.insert(0, FU);
+    }
+    res
 }
 
-pub fn sinonum_impl(num_str: &str) -> Vec<&str> {
-    let init_phase = (4 - (num_str.len() % 4)) * 2;
+pub fn sinonum_impl<T: FromIterator<&'static str>>(num_str: &str) -> T {
+    let init_phase = 4 - (num_str.len() % 4);
     let first_att_unit_power = num_str.len().next_multiple_of(4) / 4 - 1;
     let_flag!(a, had_zero_ptr, false);
     let_flag!(b, had_part_ptr, false);
-    (0..2 * num_str.len())
-        .zip(init_phase..)
-        .filter_map(|(index, phase)| {
-            if phase % 8 == 7 {
-                let place = first_att_unit_power - index / 8;
-                Some(Err(place))
-            } else if phase % 2 == 0 {
-                let index = index / 2;
-                let pre_unit_place = (phase % 8) / 2;
-                Some(Ok((index, pre_unit_place)))
-            } else {
-                None
-            }
-        }) // 按照相位得到单位
-        .map(|r| {
-            r.map(|(n, f)| {
-                (
-                    (num_str
-                        .get(n..=n)
-                        .unwrap_or_else(|| panic!("拿不到第 {n} 个字符"))
-                        .chars()
-                        .next()
-                        .unwrap_or_else(|| panic!("拿不到！")) as u8)
-                        .checked_sub('0' as u8)
-                        .filter(|&n| n <= 9)
-                        .unwrap_or_default(),
-                    f,
-                )
-            })
-        }) // Ok((数, 小单位)) Err(大单位)
+    num_str
+        .chars()
+        .into_iter()
+        .filter_map(|c| {
+            u8::try_from(c)
+                .ok()
+                .and_then(|n| n.checked_sub('0' as u8))
+                .filter(|&n| n <= 9)
+        }) // 变成 u8
+        .zip(
+            (0..)
+                .map(|i| first_att_unit_power - i)
+                .flat_map(|n| [n; 4])
+                .zip((init_phase..).map(|n| n % 4)),
+        ) // 带上位信息
+        .flat_map(|(num_char, (att_unit_place, phase))| {
+            [Ok((num_char, phase)), Err((phase, att_unit_place))]
+        }) // 变成流
+        .filter_map(|n| match n {
+            Ok(t) => Some(Ok(t)),
+            Err((phase, att_unit_place)) if phase == 3 => Some(Err(att_unit_place)),
+            _ => None,
+        }) // 每 4 位数，一个大单位标记
         .filter_map(|now| {
             if let Ok((n, _n)) = now {
                 *had_part_ptr |= n != 0;
@@ -134,7 +129,7 @@ pub fn sinonum_impl(num_str: &str) -> Vec<&str> {
             Some(now)
         }) // 合并大单位
         .flat_map(|r| match r {
-            Ok((n, f)) => {
+            Ok((n, pre_unit_place)) => {
                 if n == 0 {
                     *had_zero_ptr = true;
                     Vec::new()
@@ -145,7 +140,7 @@ pub fn sinonum_impl(num_str: &str) -> Vec<&str> {
                     }
                     *had_zero_ptr = false;
                     res.push(NUMS[n as usize]);
-                    res.push(PRE_UNITS[f]);
+                    res.push(PRE_UNITS[pre_unit_place]);
                     res
                 }
             }
