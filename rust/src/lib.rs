@@ -76,7 +76,7 @@ pub fn get_att_unit(place: usize) -> Vec<&'static str> {
     result
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum LiangOption {
     /// 禁用两
     Disable,
@@ -164,7 +164,6 @@ pub fn sinonum_impl<T: FromIterator<&'static str>>(num_str: &str, enable_liang: 
                             NUMS[n as usize]
                         },
                     );
-                    println!("{}", *last_unit_num_ptr);
                     res.push(PRE_UNITS[pre_unit_place]);
                     *last_unit_num_ptr = (pre_unit_place != 3) as usize;
                     res
