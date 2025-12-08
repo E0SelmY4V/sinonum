@@ -76,28 +76,46 @@ pub fn get_att_unit(place: usize) -> Vec<&'static str> {
     result
 }
 
-pub fn sinonumify(num_str: &str) -> String {
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum LiangOption {
+    /// 禁用两
+    Disable,
+    /// 末尾带单位，即个位可以是两
+    WithUnit,
+    /// 纯数字表示，个位不能用两
+    JustNumber,
+}
+
+pub fn sinonumify(num_str: &str, liang_option: LiangOption) -> String {
     if num_str.is_empty() {
         return NUMS[0].to_string();
     }
     let negative = num_str.starts_with("-");
-    let mut res: String = sinonum_impl(&num_str.trim()[(negative as usize)..]);
+    let mut res: String = sinonum_impl(
+        &num_str.trim()[(negative as usize)..],
+        liang_option != LiangOption::Disable,
+    );
     if negative {
         res.insert(0, FU);
+    }
+    if liang_option == LiangOption::JustNumber && res.ends_with(LIANG) {
+        res.pop();
+        res.push_str(NUMS[1]);
     }
     res
 }
 
-pub fn sinonum_impl<T: FromIterator<&'static str>>(num_str: &str) -> T {
+pub fn sinonum_impl<T: FromIterator<&'static str>>(num_str: &str, enable_liang: bool) -> T {
     let init_phase = 4 - (num_str.len() % 4);
     let first_att_unit_power = num_str.len().next_multiple_of(4) / 4 - 1;
     let_flag!(a, had_zero_ptr, false);
     let_flag!(b, had_part_ptr, false);
+    let_flag!(c, last_unit_num_ptr, 5);
     num_str
         .chars()
         .into_iter()
-        .filter_map(|c| {
-            u8::try_from(c)
+        .filter_map(|num_str| {
+            u8::try_from(num_str)
                 .ok()
                 .and_then(|n| n.checked_sub('0' as u8))
                 .filter(|&n| n <= 9)
@@ -111,13 +129,13 @@ pub fn sinonum_impl<T: FromIterator<&'static str>>(num_str: &str) -> T {
         .flat_map(|(num_char, (att_unit_place, phase))| {
             [Ok((num_char, phase)), Err((phase, att_unit_place))]
         }) // 变成流
-        .filter_map(|n| match n {
+        .filter_map(|block| match block {
             Ok(t) => Some(Ok(t)),
             Err((phase, att_unit_place)) if phase == 3 => Some(Err(att_unit_place)),
             _ => None,
         }) // 每 4 位数，一个大单位标记
-        .filter_map(|now| {
-            if let Ok((n, _n)) = now {
+        .filter_map(|block| {
+            if let Ok((n, _)) = block {
                 *had_part_ptr |= n != 0;
             } else {
                 if *had_part_ptr {
@@ -126,9 +144,9 @@ pub fn sinonum_impl<T: FromIterator<&'static str>>(num_str: &str) -> T {
                     return None;
                 }
             }
-            Some(now)
+            Some(block)
         }) // 合并大单位
-        .flat_map(|r| match r {
+        .flat_map(|block| match block {
             Ok((n, pre_unit_place)) => {
                 if n == 0 {
                     *had_zero_ptr = true;
@@ -139,19 +157,36 @@ pub fn sinonum_impl<T: FromIterator<&'static str>>(num_str: &str) -> T {
                         res.push(NUMS[0]);
                     }
                     *had_zero_ptr = false;
-                    res.push(NUMS[n as usize]);
+                    res.push(
+                        if is_liang(enable_liang, n, pre_unit_place, *last_unit_num_ptr > 1) {
+                            LIANG
+                        } else {
+                            NUMS[n as usize]
+                        },
+                    );
+                    println!("{}", *last_unit_num_ptr);
                     res.push(PRE_UNITS[pre_unit_place]);
+                    *last_unit_num_ptr = (pre_unit_place != 3) as usize;
                     res
                 }
             }
-            Err(place) => get_att_unit(place),
+            Err(place) => {
+                let att_unit = get_att_unit(place);
+                *last_unit_num_ptr += att_unit.len();
+                att_unit
+            }
         }) // 翻译
         .collect()
 }
 
-/*
-
-没有两十
-除非是2，否则两不能在最低的个位
-
- */
+/// 判断当前位是不是用两来代替二
+///
+/// ## 标准
+///
+/// - 启用两
+/// - 当前数是 2
+/// - 当前小位不是十位（如十万，十兆亿）
+/// - 当前小位是个位时，前面要么为空，要么为 `<一个字数大于等于 2 的单位>零`
+fn is_liang(enable_liang: bool, n: u8, pre_unit_place: usize, only_liang: bool) -> bool {
+    enable_liang && n == 2 && pre_unit_place != 2 && (pre_unit_place != 3 || only_liang)
+}

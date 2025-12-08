@@ -8,5 +8,5 @@ pub fn main() {
         io::stdin().read_line(&mut str).expect("cannot read!");
         str
     };
-    print!("{}", sinonumify(&line));
+    print!("{}", sinonumify(&line, LiangOption::WithUnit));
 }
