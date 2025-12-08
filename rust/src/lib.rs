@@ -100,7 +100,7 @@ pub fn sinonumify(num_str: &str, liang_option: LiangOption) -> String {
     }
     if liang_option == LiangOption::JustNumber && res.ends_with(LIANG) {
         res.pop();
-        res.push_str(NUMS[1]);
+        res.push_str(NUMS[2]);
     }
     res
 }
