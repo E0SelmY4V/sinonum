@@ -4,26 +4,15 @@ const NUMS: [&str; 10] = ["零", "一", "二", "三", "四", "五", "六", "七"
 const LIANG: &str = "两";
 const FU: char = '负';
 const PRE_UNITS: [&str; 4] = ["千", "百", "十", ""];
-const ATT_UNITS: [&str; 18] = [
-    "万",
-    "亿",
-    "兆",
-    "京",
-    "垓",
-    "杼",
-    "穰",
-    "沟",
-    "涧",
-    "正",
-    "载",
-    "极",
-    "恒河沙",
-    "阿僧口",
-    "那由它",
-    "不可思议",
-    "无量",
-    "大数",
-];
+
+pub trait AttUniter {
+    const SIZE: usize;
+    const NONTOPER_SIZE: usize = Self::SIZE - 1;
+    const NONTOPER_MASK: usize =
+        usize::MAX >> (0_usize.count_zeros() as usize - Self::NONTOPER_SIZE);
+    /// 得到位列第 `place` 位的大单位
+    fn get_att_unit(place: usize) -> Vec<&'static str>;
+}
 
 macro_rules! let_flag {
     ($name: ident, $name_ptr: ident, $value: expr) => {
@@ -32,49 +21,98 @@ macro_rules! let_flag {
     };
 }
 
-pub mod get_att_unit {
-    use crate::*;
-    pub(super) const NONTOPER_SIZE: usize = ATT_UNITS.len() - 1;
-    pub(super) const NONTOPER_MASK: usize =
-        usize::MAX >> (0_usize.count_zeros() as usize - NONTOPER_SIZE);
+macro_rules! new_att_units {
+    (
+        $(
+            #[doc = $doc:expr]
+        )*
+        $name: ident,
+        $num: literal,
+        $units: expr
+    ) => {
+        pub struct $name;
+        impl $name {
+            const UNITS: [&str; $num] = $units;
+        }
+        impl AttUniter for $name {
+            const SIZE: usize = $num;
+            $(
+                #[doc = $doc]
+            )*
+            fn get_att_unit(place: usize) -> Vec<&'static str> {
+                let toper_number = place >> Self::NONTOPER_SIZE;
+                let nontoper_place = Self::NONTOPER_MASK & place;
+                let nontoper_number = nontoper_place.count_ones() as usize;
+                let mut result: Vec<&str> = Vec::with_capacity(toper_number + nontoper_number);
+                let_flag!(tester, tester_ptr, 1_usize);
+                result.extend(
+                    Self::UNITS
+                        .into_iter()
+                        .filter_map(|att_unit| {
+                            let filted = (nontoper_place & *tester_ptr != 0).then_some(att_unit);
+                            *tester_ptr <<= 1;
+                            filted
+                        })
+                        .chain(repeat_n(
+                            *Self::UNITS.last().expect("一个大单位都没有"),
+                            toper_number,
+                        )),
+                );
+                result
+            }
+        }
+    };
 }
-
-/// 得到位列第 `place` 位的大单位
-///
-/// ## Example
-///
-/// ```rust
-/// use sinonum::get_att_unit;
-///
-/// assert_eq!("万", get_att_unit(1).join(""));
-/// assert_eq!("亿", get_att_unit(2).join(""));
-/// assert_eq!("万兆", get_att_unit(5).join(""));
-/// assert_eq!("万亿兆京垓杼", get_att_unit(63).join(""));
-/// assert_eq!(
-///     "兆京垓涧正载大数大数大数大数大数大数大数大数",
-///     get_att_unit(919324).join(""),
-/// );
-/// ```
-pub fn get_att_unit(place: usize) -> Vec<&'static str> {
-    let toper_number = place >> get_att_unit::NONTOPER_SIZE;
-    let nontoper_number = (get_att_unit::NONTOPER_MASK & place).count_ones() as usize;
-    let mut result = Vec::with_capacity(toper_number + nontoper_number);
-    let_flag!(tester, tester_ptr, 1_usize);
-    result.extend(
-        ATT_UNITS
-            .into_iter()
-            .filter_map(|att_unit| {
-                let filted = (place & *tester_ptr != 0).then_some(att_unit);
-                *tester_ptr <<= 1;
-                filted
-            })
-            .chain(repeat_n(
-                *ATT_UNITS.last().expect("一个大单位都没有"),
-                toper_number,
-            )),
-    );
-    result
-}
+new_att_units!(
+    /// ```rust
+    /// use sinonum::{OldAttUnits, AttUniter};
+    ///
+    /// assert_eq!("万", OldAttUnits::get_att_unit(1).join(""));
+    /// assert_eq!("亿", OldAttUnits::get_att_unit(2).join(""));
+    /// assert_eq!("万兆", OldAttUnits::get_att_unit(5).join(""));
+    /// assert_eq!("万亿兆京垓杼", OldAttUnits::get_att_unit(63).join(""));
+    /// assert_eq!(
+    ///     "兆京垓涧正载大数大数大数大数大数大数大数",
+    ///     OldAttUnits::get_att_unit(919324).join(""),
+    /// );
+    /// ```
+    OldAttUnits,
+    18,
+    [
+        "万",
+        "亿",
+        "兆",
+        "京",
+        "垓",
+        "杼",
+        "穰",
+        "沟",
+        "涧",
+        "正",
+        "载",
+        "极",
+        "恒河沙",
+        "阿僧口",
+        "那由它",
+        "不可思议",
+        "无量",
+        "大数",
+    ]
+);
+new_att_units!(
+    /// ```rust
+    /// use sinonum::{StdAttUnits, AttUniter};
+    ///
+    /// assert_eq!("万", StdAttUnits::get_att_unit(1).join(""));
+    /// assert_eq!("亿", StdAttUnits::get_att_unit(2).join(""));
+    /// assert_eq!("万亿", StdAttUnits::get_att_unit(3).join(""));
+    /// assert_eq!("万亿亿亿", StdAttUnits::get_att_unit(7).join(""));
+    /// assert_eq!("万亿亿亿亿", StdAttUnits::get_att_unit(9).join(""));
+    /// ```
+    StdAttUnits,
+    2,
+    ["万", "亿"]
+);
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum LiangOption {
@@ -86,12 +124,12 @@ pub enum LiangOption {
     JustNumber,
 }
 
-pub fn sinonumify(num_str: &str, liang_option: LiangOption) -> String {
+pub fn sinonumify<U: AttUniter>(num_str: &str, liang_option: LiangOption) -> String {
     if num_str.is_empty() {
         return NUMS[0].to_string();
     }
     let negative = num_str.starts_with("-");
-    let mut res: String = sinonum_impl(
+    let mut res = sinonum_impl::<U, String>(
         &num_str.trim()[(negative as usize)..],
         liang_option != LiangOption::Disable,
     );
@@ -105,7 +143,10 @@ pub fn sinonumify(num_str: &str, liang_option: LiangOption) -> String {
     res
 }
 
-pub fn sinonum_impl<T: FromIterator<&'static str>>(num_str: &str, enable_liang: bool) -> T {
+pub fn sinonum_impl<U: AttUniter, T: FromIterator<&'static str>>(
+    num_str: &str,
+    enable_liang: bool,
+) -> T {
     let init_phase = 4 - (num_str.len() % 4);
     let first_att_unit_power = num_str.len().next_multiple_of(4) / 4 - 1;
     let_flag!(a, had_zero_ptr, false);
@@ -170,7 +211,7 @@ pub fn sinonum_impl<T: FromIterator<&'static str>>(num_str: &str, enable_liang: 
                 }
             }
             Err(place) => {
-                let att_unit = get_att_unit(place);
+                let att_unit = U::get_att_unit(place);
                 *last_unit_num_ptr += att_unit.len();
                 att_unit
             }
