@@ -1,6 +1,9 @@
 #![windows_subsystem = "windows"]
 
+use std::io::{self, Write};
+
 use clap::{Parser, ValueEnum};
+use encoding::{EncoderTrap, label::encoding_from_whatwg_label};
 use sinonum::*;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -40,15 +43,20 @@ struct Args {
     /// 大单位的体系
     #[arg(short, long, default_value_t = AttMethod::Old, value_enum)]
     att_method: AttMethod,
+    /// 显示的编码，详情请在 https://crates.io/crates/encoding 查阅
+    #[arg(short, long, default_value_t = String::from("utf-8"))]
+    encoding: String,
 }
 
 pub fn main() {
     let args = Args::parse();
-    print!(
-        "{}",
-        (match args.att_method {
-            AttMethod::Old => sinonumify::<OldAttUnits>,
-            AttMethod::Std => sinonumify::<StdAttUnits>,
-        })(&args.num, args.liang_option.to())
-    );
+    let text = (match args.att_method {
+        AttMethod::Old => sinonumify::<OldAttUnits>,
+        AttMethod::Std => sinonumify::<StdAttUnits>,
+    })(&args.num, args.liang_option.to());
+    let out_text = encoding_from_whatwg_label(&args.encoding)
+        .unwrap_or_else(|| panic!("cannot find encoding {} !", args.encoding))
+        .encode(&text, EncoderTrap::Strict)
+        .expect("failed to encoding");
+    io::stdout().write(&out_text).unwrap();
 }
