@@ -9,28 +9,61 @@ mod args {
     use clap::{Parser, ValueEnum};
     use sinonum::{
         att_uniter::{OldAttUnits, StdAttUnits},
-        config::{Config, LiangOption},
+        config::{Config, LiangOption, YishiOption},
         sinonumify,
     };
 
-    #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
-    enum LiangOptionCmd {
+    macro_rules! cmdify_option {
+        (
+            $cmd_id: ident,
+            $ori_id: ident,
+            $(
+                $(
+                    #[doc = $doc:expr]
+                )*
+                $enum: ident,
+            )*
+        ) => {
+            #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+            enum $cmd_id {
+                $(
+                    $(
+                        #[doc = $doc]
+                    )*
+                    $enum,
+                )*
+            }
+            impl From<$cmd_id> for $ori_id {
+                fn from(liang_option_cmd: $cmd_id) -> Self {
+                    match liang_option_cmd {
+                        $(
+                            $cmd_id::$enum => Self::$enum,
+                        )*
+                    }
+                }
+            }
+        };
+    }
+    cmdify_option!(
+        LiangOptionCmd,
+        LiangOption,
         /// 禁用两
         Disable,
         /// 末尾带单位，即个位可以是两
         WithUnit,
-        /// 纯数字表示，即个位不能用两
+        /// 纯数字表示，个位不能用两
         JustNumber,
-    }
-    impl From<LiangOptionCmd> for LiangOption {
-        fn from(liang_option_cmd: LiangOptionCmd) -> Self {
-            match liang_option_cmd {
-                LiangOptionCmd::Disable => Self::Disable,
-                LiangOptionCmd::WithUnit => Self::WithUnit,
-                LiangOptionCmd::JustNumber => Self::JustNumber,
-            }
-        }
-    }
+    );
+    cmdify_option!(
+        YishiOptionCmd,
+        YishiOption,
+        /// 总是以“一十三”“一十四”表示
+        Always,
+        /// 除了只有两位数时，其他时候都不省略“一十”的表述
+        ExceptAlone,
+        /// 尽量避免“一十”的表述
+        Avoid,
+    );
     #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
     pub enum AttMethod {
         /// 古代大单位表示法，亿亿为兆，兆兆为京
@@ -46,7 +79,10 @@ mod args {
         num: String,
         /// 对两的用法
         #[arg(short, long, default_value_t = LiangOptionCmd::Disable, value_enum)]
-        liang_option: LiangOptionCmd,
+        liang: LiangOptionCmd,
+        /// 对一十的用法
+        #[arg(short, long, default_value_t = YishiOptionCmd::Always, value_enum)]
+        yishi: YishiOptionCmd,
         /// 大单位的体系
         #[arg(short, long, default_value_t = AttMethod::Old, value_enum)]
         att_method: AttMethod,
@@ -65,7 +101,8 @@ mod args {
     impl From<Args> for Config {
         fn from(value: Args) -> Self {
             Self {
-                liang: value.liang_option.into(),
+                liang: value.liang.into(),
+                yishi: value.yishi.into(),
             }
         }
     }
