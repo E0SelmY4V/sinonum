@@ -18,6 +18,7 @@ pub enum YishiOption {
     Avoid,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Config {
     pub liang: LiangOption,
     pub yishi: YishiOption,

@@ -95,10 +95,8 @@ mod args {
                 AttMethod::Old => sinonumify::<OldAttUnits>,
                 AttMethod::Std => sinonumify::<StdAttUnits>,
             };
-            self.num
-                .iter()
-                .map(|num| f(num, self.clone().into()))
-                .collect()
+            let config = self.clone().into();
+            self.num.iter().map(|num| f(num, config)).collect()
         }
         pub fn encode(&self, text: &str) -> Vec<u8> {
             encoding_from_whatwg_label(&self.encoding)
