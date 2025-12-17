@@ -78,7 +78,7 @@ pub fn sinonum_impl<U: AttUniter, T: FromIterator<&'static str>>(
         .flat_map(|block| match block {
             Ok((n, pre_unit_place)) => {
                 if n == 0 {
-                    *had_zero_ptr = true;
+                    *had_zero_ptr = *last_unit_num_ptr != usize::MAX;
                     Vec::new()
                 } else {
                     let mut res = Vec::with_capacity(2 + *had_zero_ptr as usize);
