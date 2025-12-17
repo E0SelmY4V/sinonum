@@ -11,15 +11,15 @@ pub mod config;
 mod util;
 
 pub fn sinonumify<U: AttUniter>(num_str: &str, config: Config) -> String {
-    if num_str.is_empty() {
-        return NUMS[0].to_string();
-    }
     let negative = num_str.starts_with("-");
     let mut res = sinonum_impl::<U, String>(
         &num_str.trim()[(negative as usize)..],
         config.liang != LiangOption::Disable,
         config.yishi,
     );
+    if res.is_empty() {
+        res = String::from(NUMS[0]);
+    }
     if negative {
         res.insert(0, FU);
     }
