@@ -1,12 +1,11 @@
 #![windows_subsystem = "windows"]
 
-use std::io::{self, Write};
-
 use clap::Parser;
-use encoding::{EncoderTrap, label::encoding_from_whatwg_label};
+use std::io::{self, Write};
 
 mod args {
     use clap::{Parser, ValueEnum};
+    use encoding::{EncoderTrap, label::encoding_from_whatwg_label};
     use sinonum::{
         att_uniter::{OldAttUnits, StdAttUnits},
         config::{Config, LiangOption, YishiOption},
@@ -76,7 +75,7 @@ mod args {
     #[command(name = "中国数字", version = "0.1", about = "把数字变成中国读法！", long_about = None)]
     pub struct Args {
         /// 要转换的十进制阿拉伯数字
-        num: String,
+        num: Vec<String>,
         /// 对两的用法
         #[arg(short, long, default_value_t = LiangOptionCmd::Disable, value_enum)]
         liang: LiangOptionCmd,
@@ -91,11 +90,21 @@ mod args {
         pub encoding: String,
     }
     impl Args {
-        pub fn run(&self) -> String {
-            (match self.att_method {
+        pub fn run(&self) -> Vec<String> {
+            let f = match self.att_method {
                 AttMethod::Old => sinonumify::<OldAttUnits>,
                 AttMethod::Std => sinonumify::<StdAttUnits>,
-            })(&self.num, self.clone().into())
+            };
+            self.num
+                .iter()
+                .map(|num| f(num, self.clone().into()))
+                .collect()
+        }
+        pub fn encode(&self, text: &str) -> Vec<u8> {
+            encoding_from_whatwg_label(&self.encoding)
+                .unwrap_or_else(|| panic!("cannot find encoding {} !", self.encoding))
+                .encode(&text, EncoderTrap::Strict)
+                .expect("failed to encoding")
         }
     }
     impl From<Args> for Config {
@@ -111,9 +120,5 @@ mod args {
 pub fn main() {
     let args = args::Args::parse();
     let text = args.run();
-    let out_text = encoding_from_whatwg_label(&args.encoding)
-        .unwrap_or_else(|| panic!("cannot find encoding {} !", args.encoding))
-        .encode(&text, EncoderTrap::Strict)
-        .expect("failed to encoding");
-    io::stdout().write(&out_text).unwrap();
+    io::stdout().write(&args.encode(&text.join("\n"))).unwrap();
 }
