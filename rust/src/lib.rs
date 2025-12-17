@@ -1,12 +1,14 @@
-use crate::att_uniter::AttUniter;
-use crate::config::LiangOption;
-use crate::util::{FU, LIANG, NUMS, PRE_UNITS};
-use std::usize;
+use att_uniter::AttUniter;
+pub use config::Config;
+use config::LiangOption;
+use config::YishiOption;
+use util::is_liang;
+use util::is_yishi;
+use util::{FU, LIANG, NUMS, PRE_UNITS};
 
 pub mod att_uniter;
 pub mod config;
 mod util;
-pub use config::Config;
 
 pub fn sinonumify<U: AttUniter>(num_str: &str, config: Config) -> String {
     if num_str.is_empty() {
@@ -16,6 +18,7 @@ pub fn sinonumify<U: AttUniter>(num_str: &str, config: Config) -> String {
     let mut res = sinonum_impl::<U, String>(
         &num_str.trim()[(negative as usize)..],
         config.liang != LiangOption::Disable,
+        config.yishi,
     );
     if negative {
         res.insert(0, FU);
@@ -30,12 +33,13 @@ pub fn sinonumify<U: AttUniter>(num_str: &str, config: Config) -> String {
 pub fn sinonum_impl<U: AttUniter, T: FromIterator<&'static str>>(
     num_str: &str,
     enable_liang: bool,
+    yishi: YishiOption,
 ) -> T {
     let init_phase = 4 - (num_str.len() % 4);
     let first_att_unit_power = num_str.len().next_multiple_of(4) / 4 - 1;
     let_flag!(a, had_zero_ptr, false);
     let_flag!(b, had_part_ptr, false);
-    let_flag!(c, last_unit_num_ptr, 5);
+    let_flag!(c, last_unit_num_ptr, usize::MAX);
     num_str
         .chars()
         .into_iter()
@@ -81,15 +85,23 @@ pub fn sinonum_impl<U: AttUniter, T: FromIterator<&'static str>>(
                     if *had_zero_ptr {
                         res.push(NUMS[0]);
                     }
-                    *had_zero_ptr = false;
-                    res.push(
-                        if is_liang(enable_liang, n, pre_unit_place, *last_unit_num_ptr > 1) {
+                    res.push(match n {
+                        1 if is_yishi(
+                            yishi,
+                            pre_unit_place,
+                            *had_zero_ptr,
+                            *last_unit_num_ptr == usize::MAX,
+                        ) =>
+                        {
+                            ""
+                        }
+                        2 if is_liang(enable_liang, pre_unit_place, *last_unit_num_ptr > 1) => {
                             LIANG
-                        } else {
-                            NUMS[n as usize]
-                        },
-                    );
+                        }
+                        n => NUMS[n as usize],
+                    });
                     res.push(PRE_UNITS[pre_unit_place]);
+                    *had_zero_ptr = false;
                     *last_unit_num_ptr = (pre_unit_place != 3) as usize;
                     res
                 }
@@ -101,16 +113,4 @@ pub fn sinonum_impl<U: AttUniter, T: FromIterator<&'static str>>(
             }
         }) // 翻译
         .collect()
-}
-
-/// 判断当前位是不是用两来代替二
-///
-/// ## 标准
-///
-/// - 启用两
-/// - 当前数是 2
-/// - 当前小位不是十位（如十万，十兆亿）
-/// - 当前小位是个位时，前面要么为空，要么为 `<一个字数大于等于 2 的单位>零`
-fn is_liang(enable_liang: bool, n: u8, pre_unit_place: usize, only_liang: bool) -> bool {
-    enable_liang && n == 2 && pre_unit_place != 2 && (pre_unit_place != 3 || only_liang)
 }

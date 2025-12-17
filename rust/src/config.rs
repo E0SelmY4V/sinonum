@@ -12,8 +12,8 @@ pub enum LiangOption {
 pub enum YishiOption {
     /// 总是以“一十三”“一十四”表示
     Always,
-    /// 除了只有两位数时，其他时候都不省略“一十”的表述
-    ExceptAlone,
+    /// 除了开头是“一十”时，其他时候都不省略“一十”的表述
+    ExceptHead,
     /// 尽量避免“一十”的表述
     Avoid,
 }
