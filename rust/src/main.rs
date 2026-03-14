@@ -1,3 +1,7 @@
+//! # 命令行版本
+//!
+//! 这个是 sinonum 的命令行程序
+
 #![windows_subsystem = "windows"]
 
 use clap::Parser;

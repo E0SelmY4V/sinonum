@@ -1,3 +1,6 @@
+//! # 配置相关
+
+/// # 两相关的配置
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum LiangOption {
     /// 禁用两
@@ -8,6 +11,7 @@ pub enum LiangOption {
     JustNumber,
 }
 
+/// # 一十相关的配置
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum YishiOption {
     /// 总是以“一十三”“一十四”表示
@@ -18,6 +22,7 @@ pub enum YishiOption {
     Avoid,
 }
 
+/// # 配置表
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Config {
     pub liang: LiangOption,

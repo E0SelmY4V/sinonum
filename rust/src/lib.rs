@@ -1,3 +1,7 @@
+//! # sinonum
+//!
+//! 把数字变成中文或中文口语，不论这个数字有多长！
+
 use att_uniter::AttUniter;
 pub use config::Config;
 use config::LiangOption;
@@ -10,6 +14,7 @@ pub mod att_uniter;
 pub mod config;
 mod util;
 
+/// 把数字变成中文
 pub fn sinonumify<U: AttUniter>(num_str: &str, config: Config) -> String {
     let negative = num_str.starts_with("-");
     let mut res = sinonum_impl::<U, String>(
@@ -30,7 +35,7 @@ pub fn sinonumify<U: AttUniter>(num_str: &str, config: Config) -> String {
     res
 }
 
-pub fn sinonum_impl<U: AttUniter, T: FromIterator<&'static str>>(
+fn sinonum_impl<U: AttUniter, T: FromIterator<&'static str>>(
     num_str: &str,
     enable_liang: bool,
     yishi: YishiOption,

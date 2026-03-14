@@ -1,6 +1,9 @@
-use crate::let_flag;
-use std::{iter::repeat_n, usize};
+//! # 大单位的配置
 
+use crate::let_flag;
+use std::iter::repeat_n;
+
+/// 大单位系统
 pub trait AttUniter {
     const SIZE: usize;
     const NONTOPER_SIZE: usize = Self::SIZE - 1;
@@ -9,6 +12,10 @@ pub trait AttUniter {
     /// 得到位列第 `place` 位的大单位
     fn get_att_unit(place: usize) -> Vec<&'static str>;
 }
+#[macro_export]
+/// # 新建大单位系统
+///
+/// 请用此方法新建大单位系统
 macro_rules! new_att_units {
     (
         $(
@@ -18,15 +25,15 @@ macro_rules! new_att_units {
         $num: literal,
         $units: expr
     ) => {
+        $(
+            #[doc = $doc]
+        )*
         pub struct $name;
         impl $name {
             const UNITS: [&str; $num] = $units;
         }
         impl AttUniter for $name {
             const SIZE: usize = $num;
-            $(
-                #[doc = $doc]
-            )*
             fn get_att_unit(place: usize) -> Vec<&'static str> {
                 let toper_number = place >> Self::NONTOPER_SIZE;
                 let nontoper_place = Self::NONTOPER_MASK & place;
@@ -52,6 +59,8 @@ macro_rules! new_att_units {
     };
 }
 new_att_units!(
+    /// # 传统大单位系统
+    ///
     /// ```rust
     /// use sinonum::att_uniter::{OldAttUnits, AttUniter};
     ///
@@ -88,6 +97,8 @@ new_att_units!(
     ]
 );
 new_att_units!(
+    /// # 建国后标准大单位系统
+    ///
     /// ```rust
     /// use sinonum::att_uniter::{StdAttUnits, AttUniter};
     ///
