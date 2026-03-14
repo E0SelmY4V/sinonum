@@ -47,11 +47,10 @@ fn sinonum_impl<U: AttUniter, T: FromIterator<&'static str>>(
     let_flag!(c, last_unit_num_ptr, usize::MAX);
     num_str
         .chars()
-        .into_iter()
         .filter_map(|num_str| {
             u8::try_from(num_str)
                 .ok()
-                .and_then(|n| n.checked_sub('0' as u8))
+                .and_then(|n| n.checked_sub(b'0'))
                 .filter(|&n| n <= 9)
         }) // 变成 u8
         .zip(
@@ -65,20 +64,18 @@ fn sinonum_impl<U: AttUniter, T: FromIterator<&'static str>>(
         }) // 变成流
         .filter_map(|block| match block {
             Ok(t) => Some(Ok(t)),
-            Err((phase, att_unit_place)) if phase == 3 => Some(Err(att_unit_place)),
+            Err((3, att_unit_place)) => Some(Err(att_unit_place)),
             _ => None,
         }) // 每 4 位数，一个大单位标记
-        .filter_map(|block| {
-            if let Ok((n, _)) = block {
+        .filter(|block| {
+            if let &Ok((n, _)) = block {
                 *had_part_ptr |= n != 0;
+            } else if *had_part_ptr {
+                *had_part_ptr = false;
             } else {
-                if *had_part_ptr {
-                    *had_part_ptr = false;
-                } else {
-                    return None;
-                }
+                return false;
             }
-            Some(block)
+            true
         }) // 合并大单位
         .flat_map(|block| match block {
             Ok((n, pre_unit_place)) => {

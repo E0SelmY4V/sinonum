@@ -105,7 +105,7 @@ mod args {
         pub fn encode(&self, text: &str) -> Vec<u8> {
             encoding_from_whatwg_label(&self.encoding)
                 .unwrap_or_else(|| panic!("cannot find encoding {} !", self.encoding))
-                .encode(&text, EncoderTrap::Strict)
+                .encode(text, EncoderTrap::Strict)
                 .expect("failed to encoding")
         }
     }
@@ -122,5 +122,5 @@ mod args {
 pub fn main() {
     let args = args::Args::parse();
     let text = args.run();
-    io::stdout().write(&args.encode(&text.join("\n"))).unwrap();
+    io::stdout().write_all(&args.encode(&text.join("\n"))).unwrap();
 }
